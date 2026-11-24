@@ -72,6 +72,8 @@ func (r *DownloadRow) open() {
 
 func (r *DownloadRow) togglePrimary() {
 	switch {
+	case r.it.Status == model.StatusSeeding:
+		r.s.Notify(r.s.M.SetSeed(r.it.ID, false))
 	case r.it.Status.Finished():
 		r.s.OpenFile(r.it.ID)
 	case r.it.Status.Active() || r.it.Status == model.StatusQueued && !r.it.Stopped:
@@ -83,6 +85,8 @@ func (r *DownloadRow) togglePrimary() {
 
 func (r *DownloadRow) primaryIcon() (string, string) {
 	switch {
+	case r.it.Status == model.StatusSeeding:
+		return "stop", "Stop seeding"
 	case r.it.Status.Finished():
 		return "external", "Open"
 	case r.it.Status.Active() || r.it.Status == model.StatusQueued && !r.it.Stopped:

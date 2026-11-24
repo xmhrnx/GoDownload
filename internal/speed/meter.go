@@ -17,6 +17,7 @@ type Meter struct {
 	at    time.Time
 	rate  float64
 	ready bool
+	idle  int
 }
 
 // Update records the counter's total at now and returns the smoothed rate in
@@ -34,8 +35,15 @@ func (m *Meter) Update(total int64, now time.Time) int64 {
 	sample := float64(total-m.last) / dt
 	alpha := 1 - math.Exp(-dt/window.Seconds())
 	m.rate += alpha * (sample - m.rate)
+	if total == m.last {
+		m.idle++
+	} else {
+		m.idle = 0
+	}
 	m.last, m.at = total, now
-	if m.rate < 1 {
+	// Smoothing alone fades a stopped transfer out over a long tail; after a
+	// few seconds with nothing at all, the speed is simply zero.
+	if m.rate < 1 || m.idle >= 3 {
 		m.rate = 0
 	}
 	return int64(m.rate)

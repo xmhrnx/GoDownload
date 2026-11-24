@@ -93,7 +93,7 @@ func (d *DetailsPanel) body() giode.Element {
 	case tabLog:
 		return DetailsLog(d.s.DetailLog)
 	}
-	return giode.Stack(giode.Styles{Gap: 18, Width: -1}, DetailsGeneral(it), d.options.View(it))
+	return giode.Stack(giode.Styles{Gap: 18, Width: -1}, d.options.View(it), DetailsGeneral(it))
 }
 
 // Layout draws the panel, or nothing when no download is focused.

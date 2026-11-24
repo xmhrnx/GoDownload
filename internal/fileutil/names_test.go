@@ -49,3 +49,13 @@ func TestWithExtension(t *testing.T) {
 		t.Errorf("WithExtension changed %q", got)
 	}
 }
+
+func TestMainFile(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "Sub"), 0o755)
+	os.WriteFile(filepath.Join(dir, "sample.mkv"), make([]byte, 10), 0o644)
+	os.WriteFile(filepath.Join(dir, "Sub", "movie.mkv"), make([]byte, 100), 0o644)
+	if got, size := MainFile(dir); got != filepath.Join(dir, "Sub", "movie.mkv") || size != 100 {
+		t.Fatalf("MainFile = %s, %d", got, size)
+	}
+}

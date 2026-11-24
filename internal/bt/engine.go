@@ -109,14 +109,15 @@ func (e *Engine) Open(src Source, dir string) (*Handle, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	spec.Storage = storage.NewFileOpts(storage.NewFileClientOpts{
+	store := newThrottledStorage(storage.NewFileOpts(storage.NewFileClientOpts{
 		ClientBaseDir:   dir,
 		PieceCompletion: sharedCompletion{e.pc},
 		UsePartFiles:    g.Some(false),
 		// Memory-mapped files count every touched page of the download as
 		// the app's memory; plain reads and writes keep it small.
 		DisableMmap: true,
-	})
+	}))
+	spec.Storage = store
 	spec.DisallowDataDownload = true
 	t, _, err := e.cl.AddTorrentSpec(spec)
 	if err != nil {
@@ -130,7 +131,7 @@ func (e *Engine) Open(src Source, dir string) (*Handle, error) {
 			}
 		}()
 	}
-	h := newHandle(e, t, dir)
+	h := newHandle(e, t, dir, store)
 	h.peerAddrs = spec.PeerAddrs
 	e.handles[spec.InfoHash] = h
 	go e.saveMetainfo(t)

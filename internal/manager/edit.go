@@ -95,16 +95,26 @@ func (m *Manager) SetConnections(id string, n int) error {
 	})
 }
 
-// SetSeed turns seeding on or off for a torrent. Turning it off while
-// seeding stops at once.
+// SetSeed turns uploading on or off for a torrent, taking effect at once:
+// off stops a seeding torrent and sends nothing more to peers (also while it
+// downloads); on starts a finished torrent seeding again.
 func (m *Manager) SetSeed(id string, on bool) error {
 	return m.edit(id, func(e *entry) {
 		if e.d.Torrent == nil {
 			return
 		}
 		e.d.Torrent.Seed = on
-		if !on && e.d.Status == model.StatusSeeding {
+		if e.torrent != nil {
+			e.torrent.SetSeed(on)
+		}
+		switch {
+		case !on && e.d.Status == model.StatusSeeding:
+			e.logf("Seeding stopped")
 			e.stop()
+		case on && e.d.Status == model.StatusCompleted && !e.running():
+			e.logf("Seeding started")
+			e.seedDone, e.d.Stopped = false, false
+			e.d.Status = model.StatusQueued
 		}
 	})
 }

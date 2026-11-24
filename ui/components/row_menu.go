@@ -48,6 +48,14 @@ func (r *RowMenu) OpenAt(e giode.ClickEvent) {
 		m.IconItem(theme.IconSource("link"), "Refresh link…", func() { s.Actions.RefreshLink(first.ID) })
 		m.IconItem(theme.IconSource("refresh"), "Download again", func() { s.Notify(s.M.Restart(first.ID)) })
 	}
+	if t := first.Torrent; t != nil {
+		if t.Seed {
+			m.IconItem(theme.IconSource("stop"), "Stop seeding", func() { r.setSeed(ids, false) })
+		} else {
+			m.IconItem(theme.IconSource("upload"), "Start seeding", func() { r.setSeed(ids, true) })
+		}
+		m.IconItem(theme.IconSource("gauge"), "Upload speed limit…", func() { s.Actions.UploadLimit(ids) })
+	}
 	m.IconItem(theme.IconSource("copy"), "Copy link", func() { s.CopyLink(first.ID) })
 	if !first.Status.Finished() {
 		if first.Scheduled {
@@ -59,6 +67,15 @@ func (r *RowMenu) OpenAt(e giode.ClickEvent) {
 	m.Separator()
 	m.IconItem(theme.IconSource("trash"), "Remove…", func() { s.Actions.Delete(ids) })
 	m.OpenAtClick(e)
+}
+
+// setSeed turns seeding on or off for the torrents among ids.
+func (r *RowMenu) setSeed(ids []string, on bool) {
+	for _, id := range ids {
+		if it, ok := r.s.Item(id); ok && it.Torrent != nil {
+			r.s.Notify(r.s.M.SetSeed(id, on))
+		}
+	}
 }
 
 // Layout lets the menu draw while open; it takes no space.

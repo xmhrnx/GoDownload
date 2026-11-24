@@ -57,6 +57,8 @@ type Actions struct {
 	Play func(id string)
 	// RefreshLink asks for a fresh link for an expired download.
 	RefreshLink func(id string)
+	// UploadLimit asks for an upload speed limit for torrents.
+	UploadLimit func(ids []string)
 	Settings    func()
 	Scheduler   func()
 }
@@ -125,6 +127,7 @@ func (s *State) Selected() []string { return s.Sel.IDs(s.VisibleIDs()) }
 // Focus shows a download's details.
 func (s *State) Focus(id string) {
 	s.Sel.Focus = id
+	s.DetailsOpen = true
 	if it, log, err := s.M.Detail(id); err == nil {
 		s.Detail, s.DetailLog = it, log
 	}

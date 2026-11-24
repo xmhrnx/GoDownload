@@ -199,8 +199,7 @@ func (m *Manager) torrentMedia(ctx context.Context, e *entry, file int) (Media, 
 	m.releaseStream(e)
 	return Media{Name: files[file].Path, Size: files[file].Size, Open: func(ctx context.Context) (io.ReadSeekCloser, error) {
 		m.acquireStream(e)
-		r, _ := h.Reader(file, window)
-		r.SetContext(ctx)
+		r := h.Reader(ctx, file, window)
 		return &releasingReader{ReadSeekCloser: r, release: func() { m.releaseStream(e) }}, nil
 	}}, nil
 }

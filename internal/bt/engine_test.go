@@ -84,11 +84,10 @@ func TestDownloadAndStream(t *testing.T) {
 	h.t.AddClientPeer(seeder)
 
 	// Stream from the middle first, as a player seeking would.
-	r, _ := h.Reader(0, 1<<20)
-	defer r.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	r.SetContext(ctx)
+	r := h.Reader(ctx, 0, 1<<20)
+	defer r.Close()
 	if _, err := r.Seek(2<<20, 0); err != nil {
 		t.Fatal(err)
 	}

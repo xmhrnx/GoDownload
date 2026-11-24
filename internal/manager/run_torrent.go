@@ -65,7 +65,7 @@ func (m *Manager) runTorrent(ctx context.Context, e *entry) error {
 			return err
 		}
 	}
-	h.Start(opts.Files, true)
+	h.Start(opts.Files, opts.Seed)
 	h.SetUploadLimit(opts.UploadLimit)
 	m.setStatus(e, model.StatusDownloading)
 

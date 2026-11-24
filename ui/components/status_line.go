@@ -19,11 +19,15 @@ func StatusLine(it model.Item) giode.Element {
 	if it.Status == model.StatusFailed {
 		detailStyle.Color = "theme.danger"
 	}
-	return giode.Row(giode.Styles{Gap: 6, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap},
+	kids := []giode.Element{
 		giode.Box(giode.Styles{Width: 7, Height: 7, BorderRadius: 99, Background: color}),
 		giode.Text(theme.StatusLabel(it.Status), giode.Styles{Color: color, FontSize: theme.SizeSmall, FontWeight: giode.FontWeightMedium}),
-		giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(detail, theme.Ellipsis(detailStyle))),
-	)
+	}
+	if it.Torrent != nil {
+		kids = append(kids, SeedBadge(it.Torrent))
+	}
+	kids = append(kids, giode.Box(giode.Styles{FlexGrow: 1}, giode.Text(detail, theme.Ellipsis(detailStyle))))
+	return giode.Row(giode.Styles{Gap: 6, Align: giode.AlignCenter, Wrap: giode.WrapNoWrap}, kids...)
 }
 
 func statusDetail(it model.Item) string {

@@ -11,9 +11,10 @@ import (
 
 // Handle is one open torrent.
 type Handle struct {
-	e   *Engine
-	t   *torrent.Torrent
-	dir string
+	e     *Engine
+	t     *torrent.Torrent
+	dir   string
+	store *throttledStorage
 
 	// peerAddrs are peers the magnet link named (x.pe), dialed again
 	// whenever downloading restarts.
@@ -23,13 +24,10 @@ type Handle struct {
 	prios      []model.FilePriority
 	peerMeters map[string]*peerMeter
 	seed       bool
-	cap        *uploadCap
 }
 
-func newHandle(e *Engine, t *torrent.Torrent, dir string) *Handle {
-	h := &Handle{e: e, t: t, dir: dir}
-	h.cap = newUploadCap(h)
-	return h
+func newHandle(e *Engine, t *torrent.Torrent, dir string, store *throttledStorage) *Handle {
+	return &Handle{e: e, t: t, dir: dir, store: store}
 }
 
 // InfoHash is the torrent's v1 info hash in hex.
@@ -111,27 +109,25 @@ func (h *Handle) SetPriorities(prios []model.FilePriority) {
 	}()
 }
 
-// SetSeed allows or forbids uploading to other peers.
+// SetSeed allows or forbids uploading to other peers. Off chokes every
+// peer, so nothing more is sent.
 func (h *Handle) SetSeed(on bool) {
 	h.mu.Lock()
 	h.seed = on
 	h.mu.Unlock()
-	h.cap.apply()
+	if on {
+		h.t.AllowDataUpload()
+	} else {
+		h.t.DisallowDataUpload()
+	}
 }
 
 // SetUploadLimit caps this torrent's upload rate; 0 removes the cap.
-func (h *Handle) SetUploadLimit(bytesPerSec int64) { h.cap.set(bytesPerSec) }
-
-func (h *Handle) seeding() bool {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.seed
-}
+func (h *Handle) SetUploadLimit(bytesPerSec int64) { h.store.limiter.Set(bytesPerSec) }
 
 // Close stops the torrent. Its data and piece records stay, so opening it
 // again resumes without rechecking.
 func (h *Handle) Close() {
-	h.cap.stop()
 	h.e.forget(h)
 	h.t.Drop()
 }
@@ -159,16 +155,6 @@ func (h *Handle) Verify(ctx context.Context) error {
 		return nil
 	}
 	return h.t.VerifyDataContext(ctx)
-}
-
-// Reader opens a streaming reader on file i. Reads wait for pieces, and the
-// pieces under and just ahead of the read position are fetched first.
-func (h *Handle) Reader(i int, readahead int64) (torrent.Reader, *torrent.File) {
-	f := h.t.Files()[i]
-	r := f.NewReader()
-	r.SetResponsive()
-	r.SetReadahead(readahead)
-	return r, f
 }
 
 // PrioritizeEnds fetches the first and last pieces of file i first: players

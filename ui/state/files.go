@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/godownload/godownload/internal/categorize"
+	"github.com/godownload/godownload/internal/fileutil"
 	"github.com/xmhrnx/giode"
 )
 
@@ -15,7 +17,9 @@ func (s *State) Notify(err error) {
 	}
 }
 
-// OpenFile opens a finished download in its default app.
+// OpenFile opens a finished download in its default app. A torrent saved as
+// a folder opens its main file when that's playable media, and otherwise
+// shows the folder: folders can't be "opened with" an app.
 func (s *State) OpenFile(id string) {
 	path, err := s.M.Path(id)
 	if err != nil {
@@ -23,7 +27,16 @@ func (s *State) OpenFile(id string) {
 		return
 	}
 	go func() {
-		err := s.App.OpenWith(context.Background(), path)
+		var err error
+		if st, statErr := os.Stat(path); statErr == nil && st.IsDir() {
+			if main, _ := fileutil.MainFile(path); main != "" && categorize.IsMedia(main) {
+				err = s.App.OpenWith(context.Background(), main)
+			} else {
+				err = s.App.OpenFolder(context.Background(), path)
+			}
+		} else {
+			err = s.App.OpenWith(context.Background(), path)
+		}
 		s.App.Post(func() { s.Notify(err) })
 	}()
 }

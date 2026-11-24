@@ -87,3 +87,6 @@ func (r *reader) Read(p []byte) (int, error) {
 	}
 	return n, err
 }
+
+// Wait blocks until n bytes may pass, or ctx ends.
+func (l *Limiter) Wait(ctx context.Context, n int) error { return l.wait(ctx, n) }

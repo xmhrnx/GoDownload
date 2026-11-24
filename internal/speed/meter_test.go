@@ -44,3 +44,17 @@ func TestRestart(t *testing.T) {
 		t.Fatalf("counter reset gave %d", r)
 	}
 }
+
+func TestStopsAtZero(t *testing.T) {
+	var m Meter
+	start := time.Unix(0, 0)
+	for i := 0; i <= 10; i++ {
+		m.Update(int64(i)*1<<20, start.Add(time.Duration(i)*time.Second))
+	}
+	for i := 11; i <= 14; i++ {
+		m.Update(10<<20, start.Add(time.Duration(i)*time.Second))
+	}
+	if r := m.Rate(); r != 0 {
+		t.Fatalf("stopped transfer still shows %d B/s", r)
+	}
+}
