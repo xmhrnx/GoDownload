@@ -175,9 +175,31 @@ func (e *Engine) writeMetainfo(t *torrent.Torrent) {
 
 // sharedCompletion lets every torrent's storage use the one piece database
 // without closing it when a torrent is dropped.
+//
+// It must pass on Checkpoint and Persistent: storage only batches piece
+// records and file syncs (about once a second) when the completion store
+// has them. Hidden behind a plain wrapper, every finished piece costs a
+// database commit and an fsync of the whole file, which stalls the client
+// and makes the speed jump up and down.
 type sharedCompletion struct{ storage.PieceCompletion }
 
 func (sharedCompletion) Close() error { return nil }
+
+func (s sharedCompletion) Checkpoint(keys []metainfo.PieceKey) error {
+	if c, ok := s.PieceCompletion.(storage.PieceCompletionCheckpointer); ok {
+		return c.Checkpoint(keys)
+	}
+	return nil
+}
+
+func (s sharedCompletion) Persistent() bool {
+	if p, ok := s.PieceCompletion.(storage.PieceCompletionPersistenter); ok {
+		return p.Persistent()
+	}
+	return true
+}
+
+var _ storage.PieceCompletionCheckpointer = sharedCompletion{}
 
 // WaitInfo waits for the torrent's metadata (instant for .torrent files).
 func (h *Handle) WaitInfo(ctx context.Context) error {

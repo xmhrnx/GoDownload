@@ -11,6 +11,7 @@ import (
 	"github.com/godownload/godownload/internal/httpdl"
 	"github.com/godownload/godownload/internal/model"
 	"github.com/godownload/godownload/internal/ratelimit"
+	"github.com/godownload/godownload/internal/speed"
 )
 
 // entry is a download and everything running for it. Its fields are guarded
@@ -39,11 +40,10 @@ type entry struct {
 	log     []string
 }
 
+// sample measures a running download's speeds.
 type sample struct {
-	at         time.Time
-	down, up   int64
-	downEMA    float64
-	upEMA      float64
+	down, up speed.Meter
+	// uploadSeen is the session upload counter already added to the total.
 	uploadSeen int64
 }
 

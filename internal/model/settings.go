@@ -92,6 +92,9 @@ type Settings struct {
 	// WhenDone runs once every download has finished.
 	WhenDone PowerAction `json:"whenDone,omitempty"`
 
+	// DetailsHeight is the details panel's height in dp, as last dragged.
+	DetailsHeight int `json:"detailsHeight,omitempty"`
+
 	Schedules []Schedule `json:"schedules,omitempty"`
 }
 

@@ -2,8 +2,10 @@ package bt
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/godownload/godownload/internal/model"
+	"github.com/godownload/godownload/internal/speed"
 )
 
 // Counters are the torrent's running byte totals for this session.
@@ -25,17 +27,19 @@ func (h *Handle) Counters() Counters {
 	}
 }
 
-// Peers lists connected peers.
+// Peers lists connected peers with their current speeds (from SamplePeers).
 func (h *Handle) Peers() []model.Peer {
 	pieces := h.t.NumPieces()
 	conns := h.t.PeerConns()
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	out := make([]model.Peer, 0, len(conns))
 	for _, c := range conns {
 		st := c.Stats()
-		p := model.Peer{
-			Addr:      fmt.Sprint(c.RemoteAddr),
-			DownSpeed: int64(st.DownloadRate),
-			UpSpeed:   int64(st.LastWriteUploadRate),
+		addr := fmt.Sprint(c.RemoteAddr)
+		p := model.Peer{Addr: addr}
+		if pm := h.peerMeters[addr]; pm != nil {
+			p.DownSpeed, p.UpSpeed = pm.down.Rate(), pm.up.Rate()
 		}
 		if name, ok := c.PeerClientName.Load().(string); ok {
 			p.Client = name
@@ -46,6 +50,41 @@ func (h *Handle) Peers() []model.Peer {
 		out = append(out, p)
 	}
 	return out
+}
+
+// SamplePeers measures each peer's speed from its byte counters. The
+// library's own per-peer rate is an average over the whole connection,
+// which doesn't match the torrent's current speed, so the speeds shown are
+// measured here the same way as the torrent's. Call it about once a second.
+func (h *Handle) SamplePeers(now time.Time) {
+	conns := h.t.PeerConns()
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.peerMeters == nil {
+		h.peerMeters = map[string]*peerMeter{}
+	}
+	seen := make(map[string]bool, len(conns))
+	for _, c := range conns {
+		st := c.Stats()
+		addr := fmt.Sprint(c.RemoteAddr)
+		seen[addr] = true
+		pm := h.peerMeters[addr]
+		if pm == nil {
+			pm = &peerMeter{}
+			h.peerMeters[addr] = pm
+		}
+		pm.down.Update(st.BytesReadUsefulData.Int64(), now)
+		pm.up.Update(st.BytesWrittenData.Int64(), now)
+	}
+	for addr := range h.peerMeters {
+		if !seen[addr] {
+			delete(h.peerMeters, addr)
+		}
+	}
+}
+
+type peerMeter struct {
+	down, up speed.Meter
 }
 
 // Coarse summarizes piece completion into n buckets for the progress bar.

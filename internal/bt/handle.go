@@ -19,10 +19,11 @@ type Handle struct {
 	// whenever downloading restarts.
 	peerAddrs []string
 
-	mu    sync.Mutex
-	prios []model.FilePriority
-	seed  bool
-	cap   *uploadCap
+	mu         sync.Mutex
+	prios      []model.FilePriority
+	peerMeters map[string]*peerMeter
+	seed       bool
+	cap        *uploadCap
 }
 
 func newHandle(e *Engine, t *torrent.Torrent, dir string) *Handle {

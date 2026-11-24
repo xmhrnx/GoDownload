@@ -12,6 +12,7 @@ import (
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/bencode"
 	"github.com/anacrolix/torrent/metainfo"
+	"github.com/anacrolix/torrent/storage"
 
 	"github.com/godownload/godownload/internal/model"
 )
@@ -194,4 +195,43 @@ func waitDone(t *testing.T, h *Handle) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatal("download did not finish")
+}
+
+// The shared piece database must keep the store's batching: without it,
+// every finished piece fsyncs the whole file and downloads stutter.
+func TestSharedCompletionBatches(t *testing.T) {
+	pc, err := storage.NewBoltPieceCompletion(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer pc.Close()
+	var shared storage.PieceCompletion = sharedCompletion{pc}
+	if _, ok := shared.(storage.PieceCompletionCheckpointer); !ok {
+		t.Fatal("shared completion hides Checkpoint")
+	}
+	if p, ok := shared.(storage.PieceCompletionPersistenter); !ok || !p.Persistent() {
+		t.Fatal("shared completion hides Persistent")
+	}
+}
+
+func TestPeerSpeedsAreCurrent(t *testing.T) {
+	_, mi, seeder := seed(t)
+	e := newEngine(t)
+	h, err := e.Open(Source{MetaInfo: mi}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Start(nil, true)
+	h.t.AddClientPeer(seeder)
+	waitDone(t, h)
+	now := time.Now()
+	h.SamplePeers(now)
+	h.SamplePeers(now.Add(3 * time.Second))
+	// Finished: nothing more arrives, so every peer's speed must have dropped,
+	// where a lifetime average would still show the download's speed.
+	for _, p := range h.Peers() {
+		if p.DownSpeed > 0 {
+			t.Fatalf("idle peer %s reports %d B/s", p.Addr, p.DownSpeed)
+		}
+	}
 }

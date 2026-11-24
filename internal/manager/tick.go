@@ -43,14 +43,6 @@ func (m *Manager) loop() {
 	}
 }
 
-// ema smooths speeds so the numbers don't jitter.
-func ema(prev float64, v float64) float64 {
-	if prev == 0 {
-		return v
-	}
-	return prev*0.6 + v*0.4
-}
-
 // sampleLocked refreshes every running download's stats; it reports whether any runs.
 func (m *Manager) sampleLocked(at time.Time) bool {
 	any := false
@@ -59,18 +51,13 @@ func (m *Manager) sampleLocked(at time.Time) bool {
 			continue
 		}
 		any = true
-		dt := at.Sub(e.sample.at).Seconds()
-		if e.sample.at.IsZero() || dt <= 0 {
-			dt = 1
-		}
-		e.sample.at = at
 		switch {
 		case e.http != nil:
-			m.sampleHTTPLocked(e, dt)
+			m.sampleHTTPLocked(e, at)
 		case e.hls != nil:
-			m.sampleHLSLocked(e, dt)
+			m.sampleHLSLocked(e, at)
 		case e.torrent != nil:
-			m.sampleTorrentLocked(e, dt)
+			m.sampleTorrentLocked(e, at)
 		}
 		e.stats.ETA = -1
 		if e.stats.DownSpeed > 0 && e.d.Size > 0 {
@@ -81,12 +68,10 @@ func (m *Manager) sampleLocked(at time.Time) bool {
 	return any
 }
 
-func (m *Manager) sampleHTTPLocked(e *entry, dt float64) {
+func (m *Manager) sampleHTTPLocked(e *entry, at time.Time) {
 	dl := e.http
 	recv := dl.Received()
-	e.sample.downEMA = ema(e.sample.downEMA, float64(recv-e.sample.down)/dt)
-	e.sample.down = recv
-	e.stats.DownSpeed = int64(e.sample.downEMA)
+	e.stats.DownSpeed = e.sample.down.Update(recv, at)
 	done, size := dl.Progress()
 	if size >= 0 {
 		e.d.Size = size
@@ -109,11 +94,8 @@ func (m *Manager) sampleHTTPLocked(e *entry, dt float64) {
 	}
 }
 
-func (m *Manager) sampleHLSLocked(e *entry, dt float64) {
-	recv := e.hls.Received()
-	e.sample.downEMA = ema(e.sample.downEMA, float64(recv-e.sample.down)/dt)
-	e.sample.down = recv
-	e.stats.DownSpeed = int64(e.sample.downEMA)
+func (m *Manager) sampleHLSLocked(e *entry, at time.Time) {
+	e.stats.DownSpeed = e.sample.down.Update(e.hls.Received(), at)
 	written, total, bytes := e.hls.Progress()
 	e.d.Done = bytes
 	if written > 0 && total > 0 {
@@ -124,19 +106,18 @@ func (m *Manager) sampleHLSLocked(e *entry, dt float64) {
 	}
 }
 
-func (m *Manager) sampleTorrentLocked(e *entry, dt float64) {
+func (m *Manager) sampleTorrentLocked(e *entry, at time.Time) {
 	h := e.torrent
 	c := h.Counters()
-	if c.Downloaded < e.sample.down || c.Uploaded < e.sample.uploadSeen {
-		// A new session (the torrent was reopened): counters restarted.
-		e.sample.down, e.sample.uploadSeen = 0, 0
+	if c.Uploaded < e.sample.uploadSeen {
+		// A new session (the torrent was reopened): its counters restarted.
+		e.sample.uploadSeen = 0
 	}
-	e.sample.downEMA = ema(e.sample.downEMA, float64(c.Downloaded-e.sample.down)/dt)
-	e.sample.upEMA = ema(e.sample.upEMA, float64(c.Uploaded-e.sample.uploadSeen)/dt)
 	e.d.Torrent.Uploaded += c.Uploaded - e.sample.uploadSeen
-	e.sample.down, e.sample.uploadSeen = c.Downloaded, c.Uploaded
-	e.stats.DownSpeed = int64(e.sample.downEMA)
-	e.stats.UpSpeed = int64(e.sample.upEMA)
+	e.sample.uploadSeen = c.Uploaded
+	e.stats.DownSpeed = e.sample.down.Update(c.Downloaded, at)
+	e.stats.UpSpeed = e.sample.up.Update(c.Uploaded, at)
+	h.SamplePeers(at)
 	e.stats.Connections, e.stats.Peers, e.stats.Seeders = c.Peers, c.Peers, c.Seeders
 	if done, wanted := h.Progress(); wanted >= 0 {
 		e.d.Done, e.d.Size = done, wanted

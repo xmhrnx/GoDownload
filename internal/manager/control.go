@@ -7,6 +7,7 @@ import (
 
 	"github.com/godownload/godownload/internal/httpdl"
 	"github.com/godownload/godownload/internal/model"
+	"github.com/godownload/godownload/internal/speed"
 )
 
 // Pause stops downloads; they stay paused until resumed. Pausing a seeding
@@ -127,6 +128,7 @@ func (m *Manager) startLocked(e *entry) {
 	e.d.Status = model.StatusConnecting
 	e.d.Error = ""
 	e.seedDone = false
+	e.sample.down, e.sample.up = speed.Meter{}, speed.Meter{}
 	done := e.done
 	e.logf("Starting")
 	go func() {
