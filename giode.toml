@@ -1,0 +1,15 @@
+[app]
+name = "GoDownload"
+id = "app.godownload.desktop"
+version = "1.0.0"
+build = 1
+icon = "assets/icon-1024.png"
+publisher = "GoDownload"
+description = "A fast, light download manager with torrents, streaming while downloading and a browser extension."
+schemes = ["magnet"]
+platforms = ["windows", "macos", "linux"]
+
+[[file_types]]
+name = "BitTorrent file"
+extensions = ["torrent"]
+mime_types = ["application/x-bittorrent"]

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoDownload Options</title>
+  <link rel="stylesheet" href="../ui/theme.css">
+  <link rel="stylesheet" href="options.css">
+  <script type="module" src="options.js"></script>
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <div class="brand">
+        <img class="brand-logo" src="../icons/icon-32.png" alt="" width="24" height="24">
+        <span class="brand-mark" aria-hidden="true" hidden>G</span>
+        <span class="brand-name">GoDownload</span>
+      </div>
+      <h1 class="page-title">Extension options</h1>
+    </header>
+
+    <form id="options-form" novalidate>
+      <section class="card section" aria-labelledby="conn-heading">
+        <h2 id="conn-heading">Connection to the desktop app</h2>
+        <p class="section-hint">The extension talks only to GoDownload on this computer (127.0.0.1).</p>
+
+        <div class="field">
+          <label for="port">Port</label>
+          <input id="port" name="port" type="number" inputmode="numeric" min="1" max="65535" step="1" required class="input input-short">
+          <p class="hint">Default 47821. Must match the port in GoDownload’s settings.</p>
+        </div>
+
+        <div class="field">
+          <label for="token">Pairing token</label>
+          <div class="input-group">
+            <input id="token" name="token" type="password" autocomplete="off" spellcheck="false" class="input mono">
+            <button type="button" class="btn" id="toggle-token" aria-controls="token" aria-pressed="false">Show</button>
+          </div>
+          <p class="hint">Optional. If GoDownload requires pairing, copy the token from its settings. Stored only on this device, never synced.</p>
+        </div>
+
+        <div class="field-row">
+          <button type="button" class="btn" id="test-connection">Test connection</button>
+          <span class="test-result" id="test-result" role="status" aria-live="polite"></span>
+        </div>
+      </section>
+
+      <section class="card section" aria-labelledby="capture-heading">
+        <h2 id="capture-heading">Download capture</h2>
+
+        <label class="toggle-row">
+          <span>
+            <span class="toggle-title">Capture downloads</span>
+            <span class="hint">Send matching browser downloads to GoDownload.</span>
+          </span>
+          <input type="checkbox" class="switch" id="enabled" name="enabled" role="switch">
+        </label>
+
+        <div class="field">
+          <div class="label-row">
+            <label for="extensions">File types to capture</label>
+            <button type="button" class="btn btn-sm btn-ghost" id="reset-extensions">Reset to defaults</button>
+          </div>
+          <textarea id="extensions" name="extensions" rows="5" spellcheck="false" class="input mono"></textarea>
+          <p class="hint">Extensions separated by commas or spaces, e.g. <code>zip, exe, mp4</code>.</p>
+        </div>
+
+        <div class="field">
+          <label for="min-size">Also capture any file of at least</label>
+          <div class="input-group input-group-inline">
+            <input id="min-size" name="minSizeMB" type="number" min="0" step="0.5" class="input input-short">
+            <span class="unit">MB</span>
+          </div>
+          <p class="hint">Applies when the browser knows the file size. Set to 0 to capture by file type only.</p>
+        </div>
+
+        <div class="field">
+          <label for="excluded-sites">Never capture on these sites</label>
+          <textarea id="excluded-sites" name="excludedSites" rows="4" spellcheck="false" class="input mono" placeholder="example.com"></textarea>
+          <p class="hint">One site per line. Subdomains are included (<code>example.com</code> also matches <code>dl.example.com</code>). Checked against both the file’s site and the page you are on.</p>
+        </div>
+
+        <label class="toggle-row">
+          <span>
+            <span class="toggle-title">Add captured downloads without asking</span>
+            <span class="hint">Asks GoDownload to skip its confirmation dialog for captured downloads.</span>
+          </span>
+          <input type="checkbox" class="switch" id="silent-intercept" name="silentIntercept" role="switch">
+        </label>
+      </section>
+
+      <section class="card section" aria-labelledby="media-heading">
+        <h2 id="media-heading">Media detection</h2>
+        <label class="toggle-row">
+          <span>
+            <span class="toggle-title">Show detected-media badge</span>
+            <span class="hint">Show the number of videos and audio streams found on the current tab on the toolbar icon.</span>
+          </span>
+          <input type="checkbox" class="switch" id="show-badge" name="showBadge" role="switch">
+        </label>
+      </section>
+
+      <div class="actions">
+        <span class="save-status" id="save-status" role="status" aria-live="polite"></span>
+        <button type="submit" class="btn btn-primary" id="save">Save changes</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>

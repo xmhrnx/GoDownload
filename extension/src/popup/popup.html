@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoDownload</title>
+  <link rel="stylesheet" href="../ui/theme.css">
+  <link rel="stylesheet" href="popup.css">
+  <script type="module" src="popup.js"></script>
+</head>
+<body>
+  <main class="popup" aria-busy="true">
+    <header class="header">
+      <div class="brand">
+        <img class="brand-logo" src="../icons/icon-32.png" alt="" width="24" height="24">
+        <span class="brand-mark" aria-hidden="true" hidden>G</span>
+        <span class="brand-name">GoDownload</span>
+      </div>
+      <button type="button" class="pill pill-button" id="connection" data-state="checking"
+              title="Check connection again" aria-live="polite">Checking…</button>
+    </header>
+
+    <div id="notices" class="notices">
+      <div class="notice notice-warn" id="permission-notice" hidden>
+        <span class="notice-text">GoDownload needs access to websites to capture downloads and detect media.</span>
+        <button type="button" class="btn btn-sm btn-primary" id="grant-permission">Allow</button>
+      </div>
+      <div class="notice notice-warn" id="token-notice" hidden>
+        <span class="notice-text">The app rejected the pairing token. Copy the token from GoDownload’s settings into the extension options.</span>
+        <button type="button" class="btn btn-sm" id="open-options-token">Options</button>
+      </div>
+      <div class="notice notice-error" id="error-notice" role="alert" hidden>
+        <span class="notice-text" id="error-text"></span>
+        <button type="button" class="btn btn-sm btn-ghost" id="dismiss-error" aria-label="Dismiss error">✕</button>
+      </div>
+      <div class="notice notice-ok" id="ok-notice" role="status" hidden>
+        <span class="notice-text" id="ok-text"></span>
+      </div>
+    </div>
+
+    <section class="card toggles" aria-label="Capture settings">
+      <label class="toggle-row">
+        <span class="toggle-text">
+          <span class="toggle-title">Capture downloads</span>
+          <span class="toggle-hint">Send matching browser downloads to GoDownload</span>
+        </span>
+        <input type="checkbox" class="switch" id="enabled" role="switch">
+      </label>
+      <label class="toggle-row">
+        <span class="toggle-text">
+          <span class="toggle-title">Send next download to browser</span>
+          <span class="toggle-hint">One time only, then capturing resumes</span>
+        </span>
+        <input type="checkbox" class="switch" id="skip-next" role="switch">
+      </label>
+    </section>
+
+    <section class="media" aria-labelledby="media-heading">
+      <h2 class="section-title" id="media-heading">
+        Detected media on this page
+        <span class="count" id="media-count"></span>
+      </h2>
+      <ul class="media-list" id="media-list"></ul>
+      <p class="empty" id="media-empty" hidden>
+        No media detected yet. Start playing a video or song on this page and it will show up here.
+      </p>
+    </section>
+
+    <footer class="footer">
+      <button type="button" class="btn btn-ghost" id="open-options">Options</button>
+      <button type="button" class="btn" id="download-all">Download all links on this page</button>
+    </footer>
+  </main>
+
+  <template id="media-item-template">
+    <li class="media-item">
+      <div class="media-info">
+        <span class="media-title"></span>
+        <span class="media-meta">
+          <span class="chip"></span>
+          <span class="media-size"></span>
+          <span class="media-host"></span>
+        </span>
+      </div>
+      <button type="button" class="btn btn-sm btn-primary media-download">Download</button>
+    </li>
+  </template>
+</body>
+</html>
