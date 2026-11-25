@@ -1,3 +1,5 @@
 /dist/
 /extension/dist/
 *.gdpart
+/godownload
+/godownload.exe
