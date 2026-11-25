@@ -11,14 +11,14 @@ import { log } from './log.js';
 const PING_TIMEOUT_MS = 800;
 
 /**
- * Ports the app moves to when its configured port can't be used, in the
- * app's order. Windows often reserves whole port ranges (Hyper-V, WSL,
- * Docker), so the app may not get the default. Keep in sync with
- * FallbackPorts in internal/server/listen.go.
+ * The ports the app may listen on, in the order it tries them. There is no
+ * port setting: the app takes the first one free (Windows often reserves
+ * whole port ranges for Hyper-V, WSL or Docker) and the extension finds it.
+ * Keep in sync with Ports in internal/server/listen.go.
  */
-export const FALLBACK_PORTS = Object.freeze([47821, 18821, 28821, 38821, 58821, 8821]);
+export const APP_PORTS = Object.freeze([47821, 18821, 28821, 38821, 58821, 8821]);
 
-/** The port the app was last found on, when it isn't the configured one. */
+/** The port the app was last found on. */
 let foundPort = null;
 const POST_TIMEOUT_MS = 8000;
 const PING_CACHE_MS = 5000;
@@ -49,12 +49,9 @@ let pingCache = null;
 /** @type {Promise<object> | null} */
 let pingInFlight = null;
 
-// A different port or token means the cached reachability is meaningless.
+// A different token means the cached reachability is meaningless.
 onSettingsChanged((_settings, keys) => {
-  if (keys.includes('port') || keys.includes('token')) {
-    pingCache = null;
-    foundPort = null;
-  }
+  if (keys.includes('token')) pingCache = null;
 });
 
 function baseUrl(port) {
@@ -111,7 +108,7 @@ async function request(path, { method = 'GET', body, timeout, port, token, requi
 
 async function connectionConfig(override) {
   const s = await getSettings();
-  return { port: override?.port ?? foundPort ?? s.port, token: override?.token ?? s.token };
+  return { port: override?.port ?? foundPort ?? APP_PORTS[0], token: override?.token ?? s.token };
 }
 
 /** Pings one port; resolves to the app's info, or throws. */
@@ -122,11 +119,11 @@ async function pingPort(port, token) {
 }
 
 /**
- * Looks for the app on the fallback ports, all at once. Resolves to the
+ * Looks for the app on its other ports, all at once. Resolves to the
  * first port that answers as GoDownload (or rejects with our token), else null.
  */
 async function discover(skip, token) {
-  const candidates = FALLBACK_PORTS.filter((p) => p !== skip);
+  const candidates = APP_PORTS.filter((p) => p !== skip);
   const attempts = candidates.map((port) =>
     pingPort(port, token).then(
       (info) => ({ port, info }),
@@ -162,9 +159,10 @@ export async function ping(opts = {}) {
     } catch (err) {
       const state = err.code === 'unauthorized' ? Connection.UNAUTHORIZED : Connection.OFFLINE;
       result = { state, info: null, error: err.message, port: cfg.port };
-      if (state === Connection.OFFLINE && !isOverride) {
-        // The app may have moved to a fallback port (its own port was taken
-        // or reserved); look there before saying it isn't running.
+      if (state === Connection.OFFLINE && opts.port === undefined) {
+        // The app may be on another of its ports (the first was taken or
+        // reserved, or it restarted elsewhere); look before saying it isn't
+        // running.
         const found = await discover(cfg.port, cfg.token);
         if (found) {
           foundPort = found.port;
@@ -174,7 +172,7 @@ export async function ping(opts = {}) {
             : { state: Connection.CONNECTED, info: found.info, port: found.port };
         } else {
           foundPort = null;
-          result.error = `GoDownload isn't answering on 127.0.0.1 (ports ${[cfg.port, ...FALLBACK_PORTS.filter((p) => p !== cfg.port)].join(', ')}). Is the app open?`;
+          result.error = "GoDownload isn't answering on this computer. Is the app open?";
         }
       }
     }

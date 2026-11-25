@@ -92,8 +92,8 @@ const handlers = {
     return result;
   },
 
-  async 'options:testConnection'({ port, token }) {
-    const result = await ping({ port, token, force: true });
+  async 'options:testConnection'({ token }) {
+    const result = await ping({ token, force: true });
     return { state: result.state, appVersion: result.info?.version ?? '', interceptEnabled: result.info?.interceptEnabled ?? null, error: result.error ?? '' };
   },
 };

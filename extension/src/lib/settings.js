@@ -2,14 +2,14 @@
  * User settings: defaults, normalisation, persistence and change notification.
  *
  * Most settings live in storage.sync (falling back to storage.local when sync
- * is unavailable or fails). The port and pairing token are deliberately kept
- * in storage.local only: they describe *this* machine's desktop app, and the
- * token is a secret that should never be uploaded to a browser-sync account.
+ * is unavailable or fails). The pairing token is deliberately kept in
+ * storage.local only: it belongs to *this* machine's desktop app, and is a
+ * secret that should never be uploaded to a browser-sync account. There is no
+ * port setting: the extension finds the app itself (see api.js).
  */
 import { api } from './browser.js';
 import { log } from './log.js';
 
-export const DEFAULT_PORT = 47821;
 
 export const DEFAULT_EXTENSIONS = Object.freeze([
   // archives
@@ -31,7 +31,6 @@ export const DEFAULT_EXTENSIONS = Object.freeze([
 
 export const DEFAULTS = Object.freeze({
   enabled: true,              // global "Capture downloads" switch
-  port: DEFAULT_PORT,
   token: '',
   extensions: DEFAULT_EXTENSIONS,
   minSizeMB: 1,               // 0 disables the size rule
@@ -41,7 +40,7 @@ export const DEFAULTS = Object.freeze({
 });
 
 /** Keys stored only on this device (never synced). */
-const LOCAL_ONLY = new Set(['port', 'token']);
+const LOCAL_ONLY = new Set(['token']);
 
 let cache = null;
 
@@ -78,11 +77,9 @@ export function parseSiteList(text) {
 /** Coerces arbitrary stored/user input into a valid settings object. */
 export function normalizeSettings(raw) {
   const s = { ...DEFAULTS, ...(raw ?? {}) };
-  const port = Number.parseInt(s.port, 10);
   const minSize = Number(s.minSizeMB);
   return {
     enabled: s.enabled !== false,
-    port: Number.isInteger(port) && port > 0 && port < 65536 ? port : DEFAULT_PORT,
     token: String(s.token ?? '').trim(),
     extensions: Array.isArray(s.extensions) ? parseExtensionList(s.extensions.join(' ')) : parseExtensionList(s.extensions),
     minSizeMB: Number.isFinite(minSize) && minSize >= 0 ? minSize : DEFAULTS.minSizeMB,

@@ -101,7 +101,6 @@ func (g *goDownload) start() error {
 	g.app.SetCloseToTray(settings.CloseToTray)
 
 	g.srv, err = server.Start(server.Config{
-		Port:      settings.APIPort,
 		Token:     settings.APIToken,
 		Intercept: func() bool { return g.m.Settings().CaptureBrowser },
 		OnAdd: func(links []server.Link, batch bool) {
@@ -118,12 +117,6 @@ func (g *goDownload) start() error {
 	g.root = ui.NewRoot(g.st)
 	g.m.Start()
 	g.root.Start()
-	if p := g.srv.Port(); p != settings.APIPort {
-		// The extension finds the app on the fallback ports too, but say why
-		// the configured one wasn't used.
-		toasts.Show(giode.ToastWarning, fmt.Sprintf(
-			"Browser extension port %d is unavailable (in use, or reserved by the system); using %d instead.", settings.APIPort, p))
-	}
 	g.root.OpenArgs(os.Args[1:])
 	return nil
 }

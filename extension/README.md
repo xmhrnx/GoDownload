@@ -56,8 +56,9 @@ the PNGs to `icons/` and rebuild before publishing.
 Temporary add-ons are removed when Firefox restarts. For a permanent install the
 package has to be signed through addons.mozilla.org.
 
-The options page opens automatically on first install. Set the port (default
-**47821**) and, if the desktop app asks for pairing, its token.
+The options page opens automatically on first install. There is no port to
+set: the extension finds the app on its own. Only if the desktop app asks for
+pairing, paste its token.
 
 ## Features
 
@@ -148,7 +149,7 @@ without asking** (sends `silent: true`), **Show detected-media badge**, and
 **Test connection** (tests the values in the form, even unsaved ones).
 
 Settings are saved in `storage.sync`, or `storage.local` if sync isn't
-available. The **port and token are always stored in `storage.local` only**:
+available. The **token is always stored in `storage.local` only**:
 they belong to this computer's app, and the token is a secret that shouldn't be
 uploaded to a browser-sync account.
 

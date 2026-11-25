@@ -2,14 +2,13 @@
  * Options page: edits settings directly through settings.js (extension pages
  * have storage access) and asks the background to test the connection.
  */
-import { DEFAULT_EXTENSIONS, DEFAULT_PORT, getSettings, onSettingsChanged, parseExtensionList, parseSiteList, saveSettings } from '../lib/settings.js';
+import { DEFAULT_EXTENSIONS, getSettings, onSettingsChanged, parseExtensionList, parseSiteList, saveSettings } from '../lib/settings.js';
 import { callBackground } from '../ui/messaging.js';
 import { installLogoFallback } from '../ui/format.js';
 
 const $ = (id) => document.getElementById(id);
 const el = {
   form: $('options-form'),
-  port: $('port'),
   token: $('token'),
   toggleToken: $('toggle-token'),
   enabled: $('enabled'),
@@ -29,7 +28,6 @@ let dirty = false;
 let statusTimer = 0;
 
 function fill(settings) {
-  el.port.value = String(settings.port);
   el.token.value = settings.token;
   el.enabled.checked = settings.enabled;
   el.extensions.value = settings.extensions.join(', ');
@@ -47,13 +45,6 @@ function setStatus(text, state = '') {
   if (state === 'ok') statusTimer = setTimeout(() => setStatus(''), 2500);
 }
 
-function readPort() {
-  const port = Number(el.port.value);
-  const valid = Number.isInteger(port) && port > 0 && port < 65536;
-  el.port.setAttribute('aria-invalid', String(!valid));
-  return valid ? port : null;
-}
-
 function readMinSize() {
   const value = el.minSize.value.trim() === '' ? 0 : Number(el.minSize.value);
   const valid = Number.isFinite(value) && value >= 0;
@@ -63,12 +54,6 @@ function readMinSize() {
 
 /** Validates the form; returns the settings object or null (focusing the bad field). */
 function collect() {
-  const port = readPort();
-  if (port === null) {
-    setStatus('Enter a port between 1 and 65535.', 'error');
-    el.port.focus();
-    return null;
-  }
   const minSizeMB = readMinSize();
   if (minSizeMB === null) {
     setStatus('Minimum size must be 0 or more.', 'error');
@@ -76,7 +61,6 @@ function collect() {
     return null;
   }
   return {
-    port,
     token: el.token.value.trim(),
     enabled: el.enabled.checked,
     extensions: parseExtensionList(el.extensions.value),
@@ -105,17 +89,16 @@ async function save(event) {
 const TEST_TEXT = {
   connected: (r) => `Connected to GoDownload${r.appVersion ? ` ${r.appVersion}` : ''}${r.interceptEnabled === false ? ' (capturing is turned off in the app)' : ''}.`,
   unauthorized: () => 'GoDownload is running but rejected the pairing token.',
-  offline: (r) => `Can’t reach GoDownload on this port. Is the app running?${r.error && !/not running/i.test(r.error) ? ` (${r.error})` : ''}`,
+  offline: (r) => `Can’t reach GoDownload. Is the app running?${r.error && !/not running/i.test(r.error) ? ` (${r.error})` : ''}`,
 };
 
 async function testConnection() {
-  const port = readPort() ?? DEFAULT_PORT;
   el.testButton.disabled = true;
   el.testResult.dataset.state = '';
   el.testResult.textContent = 'Testing…';
   try {
     // Tests the values currently in the form, saved or not.
-    const result = await callBackground('options:testConnection', { port, token: el.token.value.trim() });
+    const result = await callBackground('options:testConnection', { token: el.token.value.trim() });
     el.testResult.dataset.state = result.state;
     el.testResult.textContent = (TEST_TEXT[result.state] ?? TEST_TEXT.offline)(result);
   } catch (err) {

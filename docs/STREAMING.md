@@ -15,7 +15,8 @@ player with one argument, the stream URL:
 http://127.0.0.1:<port>/stream/<token>/<id>/<file>/<name>
 ```
 
-- `<port>` is GoDownload's local port (47821 unless changed).
+- `<port>` is GoDownload's local port: the first free one of 47821, 18821,
+  28821, 38821, 58821 and 8821. Use the URL as given rather than building it.
 - `<token>` is random per GoDownload session, so other local pages can't guess URLs.
 - `<id>` is the download, `<file>` the file index (torrents have several; 0 otherwise).
 - `<name>` is the file name, for players that show it.

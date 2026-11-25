@@ -84,7 +84,6 @@ type Settings struct {
 	// StreamBufferMB is how much is fetched ahead of the play position.
 	StreamBufferMB int `json:"streamBufferMB"`
 
-	APIPort  int    `json:"apiPort"`
 	APIToken string `json:"apiToken,omitempty"`
 	// CaptureBrowser lets the extension hand browser downloads to GoDownload.
 	CaptureBrowser bool `json:"captureBrowser"`
@@ -117,7 +116,6 @@ func DefaultSettings(downloadsDir string) Settings {
 		Encryption:     true,
 		Player:         "auto",
 		StreamBufferMB: 16,
-		APIPort:        47821,
 		CaptureBrowser: true,
 	}
 }

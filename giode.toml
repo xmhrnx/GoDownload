@@ -8,6 +8,10 @@ publisher = "GoDownload"
 description = "A fast, light download manager with torrents, streaming while downloading and a browser extension."
 schemes = ["magnet"]
 platforms = ["windows", "macos", "linux"]
+# The torrent library compiles in SQLite when cgo is on; GoDownload uses its
+# bolt database instead, so leave SQLite out. -s -w drops debug symbols.
+tags = "nosqlite"
+ldflags = "-s -w"
 
 [[file_types]]
 name = "BitTorrent file"

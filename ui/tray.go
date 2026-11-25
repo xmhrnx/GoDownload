@@ -4,7 +4,6 @@ import (
 	"github.com/xmhrnx/giode"
 
 	"github.com/godownload/godownload/assets"
-	"github.com/godownload/godownload/internal/format"
 )
 
 // setupTray puts GoDownload in the system tray, so it keeps downloading and
@@ -14,9 +13,15 @@ func (r *Root) setupTray() {
 		return
 	}
 	s := r.s
-	s.App.Tray().
-		SetTemplateIcon(assets.Tray).
-		SetTooltip("GoDownload").
+	tray := s.App.Tray()
+	if giode.IsPlatform(giode.PlatformMacOS) {
+		tray.SetTemplateIcon(assets.Tray) // tinted by macOS to suit the menu bar
+	} else {
+		tray.SetIcon(assets.Icon)
+	}
+	// Set once: every tray change rebuilds the whole menu, which closes it
+	// under the pointer if it happens while the menu is open.
+	tray.SetTooltip("GoDownload").
 		SetMenu(
 			giode.TrayAction("Show GoDownload", s.App.ShowWindow),
 			giode.TrayAction("New download…", func() { s.App.ShowWindow(); s.Actions.Add("") }),
@@ -26,27 +31,4 @@ func (r *Root) setupTray() {
 			giode.TraySeparator(),
 			giode.TrayAction("Quit", s.App.Quit),
 		)
-}
-
-// updateTray shows the speeds in the tray tooltip.
-func (r *Root) updateTray() {
-	if !giode.TraySupported() {
-		return
-	}
-	t := r.s.Totals
-	tip := "GoDownload"
-	if t.Active > 0 || t.Seeding > 0 {
-		tip += " — ↓ " + speed(t.Down) + "  ↑ " + speed(t.Up)
-	}
-	if tip != r.lastTip {
-		r.lastTip = tip
-		r.s.App.Tray().SetTooltip(tip)
-	}
-}
-
-func speed(bps int64) string {
-	if bps <= 0 {
-		return "0 B/s"
-	}
-	return format.Speed(bps)
 }

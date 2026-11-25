@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"slices"
 	"strings"
 	"testing"
 )
@@ -29,7 +28,7 @@ func call(t *testing.T, s *Server, method, path, origin, token, body string) int
 
 func TestAPIOriginsAndToken(t *testing.T) {
 	var got []Link
-	s, err := Start(Config{Port: 0, OnAdd: func(l []Link, _ bool) { got = append(got, l...) }}, nil)
+	s, err := Start(Config{Ports: []int{0}, OnAdd: func(l []Link, _ bool) { got = append(got, l...) }}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,12 +75,12 @@ func TestFallsBackWhenPortTaken(t *testing.T) {
 	}
 	defer blocker.Close()
 	taken := blocker.Addr().(*net.TCPAddr).Port
-	s, err := Start(Config{Port: taken, OnAdd: func([]Link, bool) {}}, nil)
+	s, err := Start(Config{Ports: []int{taken, 0}, OnAdd: func([]Link, bool) {}}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	if s.Port() == taken || !slices.Contains(FallbackPorts, s.Port()) {
-		t.Fatalf("listening on %d, want one of %v", s.Port(), FallbackPorts)
+	if s.Port() == taken {
+		t.Fatalf("listening on the taken port %d", taken)
 	}
 }

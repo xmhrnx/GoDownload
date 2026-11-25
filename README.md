@@ -113,7 +113,8 @@ Then load `dist/chrome` as an unpacked extension (Developer mode in
 `about:debugging`. The full guide and the security model are in
 [extension/README.md](extension/README.md).
 
-The app listens on `127.0.0.1:47821`. It accepts requests only from extension
+There is nothing to configure: the app listens on the first free port of a
+short fixed list on `127.0.0.1`, and the extension finds it. It accepts requests only from extension
 origins (`chrome-extension://`, `moz-extension://`), never from web pages, and
 can require a pairing token (Settings › Browser).
 
@@ -124,6 +125,9 @@ Go 1.26.6+. Linux also needs Gio's system libraries:
 ```sh
 sudo apt install gcc pkg-config libwayland-dev libx11-dev libx11-xcb-dev libxkbcommon-x11-dev libgles2-mesa-dev libegl1-mesa-dev libffi-dev libxcursor-dev libvulkan-dev
 ```
+
+On Windows, run `build.bat`: it uses the giode CLI when installed and
+otherwise `go build` with the same settings, into `dist\windows\`.
 
 ```sh
 go run .                      # run from source

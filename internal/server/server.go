@@ -22,7 +22,8 @@ const Version = "1.0.0"
 
 // Config sets up the server.
 type Config struct {
-	Port int
+	// Ports overrides the ports tried, for tests; empty uses Ports.
+	Ports []int
 	// Token, when set, must be sent by the extension as a bearer token.
 	Token string
 	// Intercept tells the extension whether to capture browser downloads.
@@ -43,9 +44,13 @@ type Server struct {
 	mu sync.Mutex
 }
 
-// Start listens on 127.0.0.1:Port.
+// Start listens on 127.0.0.1, on the first free port of Ports.
 func Start(cfg Config, m *manager.Manager) (*Server, error) {
-	ln, err := listen(cfg.Port)
+	ports := cfg.Ports
+	if len(ports) == 0 {
+		ports = Ports
+	}
+	ln, err := listen(ports)
 	if err != nil {
 		return nil, fmt.Errorf("no port for the browser extension: %w", err)
 	}

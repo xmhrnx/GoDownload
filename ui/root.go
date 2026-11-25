@@ -25,7 +25,6 @@ type Root struct {
 
 	release  func() // ends the keep-awake request
 	lastClip string
-	lastTip  string
 }
 
 // NewRoot builds the window's components and dialogs once.
@@ -46,7 +45,6 @@ func NewRoot(s *state.State) *Root {
 func (r *Root) Start() {
 	r.s.AfterRefresh = func() {
 		r.keepAwake()
-		r.updateTray()
 	}
 	r.setupTray()
 	r.watchClipboard()
