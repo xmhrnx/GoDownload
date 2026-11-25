@@ -48,8 +48,8 @@ func (r *Root) addQuietly(in dialogs.Incoming) {
 	go func() {
 		p, err := s.M.Probe(context.Background(), in.URL, in.Headers)
 		s.App.Post(func() {
-			if err != nil {
-				// Let the user see and retry what failed.
+			if err != nil || p.Torrent {
+				// Let the user see what failed, or pick a torrent's files.
 				r.dialogs.Add.Review([]dialogs.Incoming{in})
 				return
 			}

@@ -90,7 +90,7 @@ func (l *TorrentFileList) rows() giode.Element {
 	for i, f := range l.files {
 		cat := categorize.ByName(f.Path, "")
 		right := []giode.Element{giode.Text(format.Bytes(f.Size), theme.Muted(theme.SizeSmall))}
-		if l.progress && f.Size > 0 {
+		if l.progress && f.Size > 0 && f.Done >= 0 {
 			right = append([]giode.Element{giode.Box(giode.Styles{Width: 90},
 				ProgressBar(float64(f.Done)/float64(f.Size), nil, "theme.primary", 5))}, right...)
 		}

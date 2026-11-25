@@ -109,12 +109,7 @@ func (g *goDownload) start() error {
 		},
 	}, g.m)
 	if err != nil {
-		// Downloads and streaming still work; only the extension can't connect.
-		log.Printf("browser connection: %v", err)
-		g.srv, err = server.Start(server.Config{Port: 0, OnAdd: func([]server.Link, bool) {}}, g.m)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	toasts := giode.Toaster().Placement(giode.ToastBottomEnd).Duration(5 * time.Second).Max(4).
@@ -123,6 +118,12 @@ func (g *goDownload) start() error {
 	g.root = ui.NewRoot(g.st)
 	g.m.Start()
 	g.root.Start()
+	if p := g.srv.Port(); p != settings.APIPort {
+		// The extension finds the app on the fallback ports too, but say why
+		// the configured one wasn't used.
+		toasts.Show(giode.ToastWarning, fmt.Sprintf(
+			"Browser extension port %d is unavailable (in use, or reserved by the system); using %d instead.", settings.APIPort, p))
+	}
 	g.root.OpenArgs(os.Args[1:])
 	return nil
 }

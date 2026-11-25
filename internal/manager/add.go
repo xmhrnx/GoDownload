@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -171,6 +172,9 @@ type Probed struct {
 	Category  model.Category
 	Dir       string
 	Duplicate string // ID of an unfinished download of the same URL
+	// Torrent is set when the link is a .torrent file: it should be opened
+	// as a torrent (with its files to choose from), not saved as a file.
+	Torrent bool
 }
 
 // Probe asks the server about a link.
@@ -198,8 +202,44 @@ func (m *Manager) Probe(ctx context.Context, rawURL string, h model.RequestHeade
 		return m.probeHLS(ctx, client, req, dup)
 	}
 	cat := categorize.ByName(info.Name, info.ContentType)
+	isTorrent := strings.Contains(strings.ToLower(info.ContentType), "bittorrent") ||
+		strings.EqualFold(filepath.Ext(info.Name), ".torrent")
 	return Probed{Kind: model.KindHTTP, URL: info.URL, Name: info.Name, Size: info.Size,
-		Resumable: info.Ranges, Category: cat, Dir: m.DirFor(cat), Duplicate: dup}, nil
+		Resumable: info.Ranges, Category: cat, Dir: m.DirFor(cat), Duplicate: dup, Torrent: isTorrent}, nil
+}
+
+// maxTorrentFile is the largest .torrent file fetched; real ones are far smaller.
+const maxTorrentFile = 32 << 20
+
+// FetchTorrent downloads a .torrent file from a link, with the browser's
+// headers (sites often need its cookies), and checks it's a valid torrent.
+func (m *Manager) FetchTorrent(ctx context.Context, rawURL string, h model.RequestHeaders) ([]byte, error) {
+	m.mu.Lock()
+	client := m.client
+	m.mu.Unlock()
+	req, err := httpdl.Request{URL: rawURL, Headers: h}.Build(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, &httpdl.StatusError{Code: resp.StatusCode}
+	}
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxTorrentFile+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxTorrentFile {
+		return nil, errors.New("the .torrent file is too large")
+	}
+	if _, err := bt.HashOf(bt.Source{MetaInfo: data}); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func (m *Manager) probeHLS(ctx context.Context, client *http.Client, req httpdl.Request, dup string) (Probed, error) {

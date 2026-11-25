@@ -51,24 +51,48 @@ func newAddEntry(in Incoming) *addEntry {
 // probe asks the server or the swarm about the entry; done runs on the UI
 // goroutine with the result applied.
 func (e *addEntry) probe(ctx context.Context, s *state.State, done func()) {
+	if e.torrent != nil {
+		e.inspect(ctx, s, done)
+		return
+	}
 	go func() {
-		if e.torrent != nil {
-			meta, err := s.M.InspectTorrent(ctx, *e.torrent)
+		p, err := s.M.Probe(ctx, e.in.URL, e.in.Headers)
+		if err == nil && p.Torrent {
+			// A link to a .torrent file: open the torrent it describes, so
+			// its files can be chosen, rather than saving the .torrent.
+			data, ferr := s.M.FetchTorrent(ctx, p.URL, e.in.Headers)
 			s.App.Post(func() {
-				e.probing, e.meta, e.err = false, meta, err
-				if err == nil {
-					e.files.SetFiles(meta.Files)
+				if ferr != nil {
+					e.probing, e.err = false, ferr
+					done()
+					return
 				}
-				done()
+				e.torrent = &bt.Source{MetaInfo: data}
+				e.files = components.NewTorrentFileList(false, nil)
+				e.inspect(ctx, s, done)
 			})
 			return
 		}
-		p, err := s.M.Probe(ctx, e.in.URL, e.in.Headers)
 		s.App.Post(func() {
 			e.probing, e.probed, e.err = false, p, err
 			if e.in.Filename != "" && err == nil {
 				e.probed.Name = fileutil.Sanitize(e.in.Filename)
 				e.probed.Category = categorize.ByName(e.probed.Name, "")
+			}
+			done()
+		})
+	}()
+}
+
+// inspect fetches the torrent's file list.
+func (e *addEntry) inspect(ctx context.Context, s *state.State, done func()) {
+	src := *e.torrent
+	go func() {
+		meta, err := s.M.InspectTorrent(ctx, src)
+		s.App.Post(func() {
+			e.probing, e.meta, e.err = false, meta, err
+			if err == nil {
+				e.files.SetFiles(meta.Files)
 			}
 			done()
 		})

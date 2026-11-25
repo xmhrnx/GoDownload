@@ -3,6 +3,7 @@ package manager
 import (
 	"slices"
 
+	"github.com/godownload/godownload/internal/bt"
 	"github.com/godownload/godownload/internal/model"
 )
 
@@ -46,9 +47,24 @@ func (m *Manager) Detail(id string) (model.Item, []string, error) {
 	log := slices.Clone(e.log)
 	h := e.torrent
 	m.mu.Unlock()
-	if h != nil {
+	switch {
+	case h != nil:
 		it.Files = h.Files()
 		it.PeerList = h.Peers()
+	case it.Torrent != nil:
+		// Not running: list the files from the saved .torrent so they can
+		// still be chosen; progress per file isn't known until it runs.
+		if files, err := bt.SavedFiles(m.store.TorrentDir(), it.Torrent.InfoHash); err == nil {
+			for i := range files {
+				if i < len(it.Torrent.Files) {
+					files[i].Priority = it.Torrent.Files[i]
+				}
+				if it.Status.Finished() && files[i].Priority != model.PrioritySkip {
+					files[i].Done = files[i].Size
+				}
+			}
+			it.Files = files
+		}
 	}
 	return it, log, nil
 }

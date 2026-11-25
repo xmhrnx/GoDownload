@@ -76,6 +76,7 @@ function renderConnection(connection) {
     ? `GoDownload ${connection.appVersion} — click to re-check`
     : 'Click to check the connection again';
   el.tokenNotice.hidden = state !== 'unauthorized';
+  if (state === 'offline' && connection.error) showError(connection.error);
 }
 
 function renderMediaItem(item) {

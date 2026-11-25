@@ -40,8 +40,10 @@ func (e *Engine) Inspect(ctx context.Context, src Source) (Meta, error) {
 	if err != nil {
 		return Meta{}, err
 	}
-	defer t.Drop()
-	if e.cfg.ExtraTrackers {
+	// Dropping waits on tracker connections; nothing here needs to wait for it.
+	defer func() { go t.Drop() }()
+	if e.cfg.ExtraTrackers && len(src.MetaInfo) == 0 {
+		// Only a magnet link needs peers (and so trackers) for its details.
 		t.AddTrackers(publicTrackers)
 	}
 	select {

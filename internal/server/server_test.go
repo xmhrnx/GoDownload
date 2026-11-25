@@ -2,7 +2,9 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -64,5 +66,22 @@ func TestRanges(t *testing.T) {
 	want := [][2]int64{{0, 400}, {800, 1000}}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("ranges = %v", got)
+	}
+}
+
+func TestFallsBackWhenPortTaken(t *testing.T) {
+	blocker, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blocker.Close()
+	taken := blocker.Addr().(*net.TCPAddr).Port
+	s, err := Start(Config{Port: taken, OnAdd: func([]Link, bool) {}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if s.Port() == taken || !slices.Contains(FallbackPorts, s.Port()) {
+		t.Fatalf("listening on %d, want one of %v", s.Port(), FallbackPorts)
 	}
 }

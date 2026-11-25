@@ -9,6 +9,17 @@ import { getSettings, onSettingsChanged } from './settings.js';
 import { log } from './log.js';
 
 const PING_TIMEOUT_MS = 800;
+
+/**
+ * Ports the app moves to when its configured port can't be used, in the
+ * app's order. Windows often reserves whole port ranges (Hyper-V, WSL,
+ * Docker), so the app may not get the default. Keep in sync with
+ * FallbackPorts in internal/server/listen.go.
+ */
+export const FALLBACK_PORTS = Object.freeze([47821, 18821, 28821, 38821, 58821, 8821]);
+
+/** The port the app was last found on, when it isn't the configured one. */
+let foundPort = null;
 const POST_TIMEOUT_MS = 8000;
 const PING_CACHE_MS = 5000;
 
@@ -40,7 +51,10 @@ let pingInFlight = null;
 
 // A different port or token means the cached reachability is meaningless.
 onSettingsChanged((_settings, keys) => {
-  if (keys.includes('port') || keys.includes('token')) pingCache = null;
+  if (keys.includes('port') || keys.includes('token')) {
+    pingCache = null;
+    foundPort = null;
+  }
 });
 
 function baseUrl(port) {
@@ -97,7 +111,33 @@ async function request(path, { method = 'GET', body, timeout, port, token, requi
 
 async function connectionConfig(override) {
   const s = await getSettings();
-  return { port: override?.port ?? s.port, token: override?.token ?? s.token };
+  return { port: override?.port ?? foundPort ?? s.port, token: override?.token ?? s.token };
+}
+
+/** Pings one port; resolves to the app's info, or throws. */
+async function pingPort(port, token) {
+  const { data } = await request('/ping', { timeout: PING_TIMEOUT_MS, requireJson: true, port, token });
+  if (data.app !== 'GoDownload') throw new ApiError('bad-response', 'Another application is using this port');
+  return data;
+}
+
+/**
+ * Looks for the app on the fallback ports, all at once. Resolves to the
+ * first port that answers as GoDownload (or rejects with our token), else null.
+ */
+async function discover(skip, token) {
+  const candidates = FALLBACK_PORTS.filter((p) => p !== skip);
+  const attempts = candidates.map((port) =>
+    pingPort(port, token).then(
+      (info) => ({ port, info }),
+      (err) => (err.code === 'unauthorized' ? { port, unauthorized: true } : Promise.reject(err)),
+    ),
+  );
+  try {
+    return await Promise.any(attempts);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -117,12 +157,26 @@ export async function ping(opts = {}) {
     const cfg = await connectionConfig(isOverride ? opts : undefined);
     let result;
     try {
-      const { data } = await request('/ping', { timeout: PING_TIMEOUT_MS, requireJson: true, ...cfg });
-      if (data.app !== 'GoDownload') throw new ApiError('bad-response', 'Another application is using this port');
-      result = { state: Connection.CONNECTED, info: data };
+      const data = await pingPort(cfg.port, cfg.token);
+      result = { state: Connection.CONNECTED, info: data, port: cfg.port };
     } catch (err) {
       const state = err.code === 'unauthorized' ? Connection.UNAUTHORIZED : Connection.OFFLINE;
-      result = { state, info: null, error: err.message };
+      result = { state, info: null, error: err.message, port: cfg.port };
+      if (state === Connection.OFFLINE && !isOverride) {
+        // The app may have moved to a fallback port (its own port was taken
+        // or reserved); look there before saying it isn't running.
+        const found = await discover(cfg.port, cfg.token);
+        if (found) {
+          foundPort = found.port;
+          log.info(`GoDownload found on port ${found.port}`);
+          result = found.unauthorized
+            ? { state: Connection.UNAUTHORIZED, info: null, error: 'Pairing token missing or invalid', port: found.port }
+            : { state: Connection.CONNECTED, info: found.info, port: found.port };
+        } else {
+          foundPort = null;
+          result.error = `GoDownload isn't answering on 127.0.0.1 (ports ${[cfg.port, ...FALLBACK_PORTS.filter((p) => p !== cfg.port)].join(', ')}). Is the app open?`;
+        }
+      }
     }
     result.at = Date.now();
     if (!isOverride) pingCache = result;

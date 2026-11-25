@@ -45,9 +45,9 @@ type Server struct {
 
 // Start listens on 127.0.0.1:Port.
 func Start(cfg Config, m *manager.Manager) (*Server, error) {
-	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", cfg.Port))
+	ln, err := listen(cfg.Port)
 	if err != nil {
-		return nil, fmt.Errorf("port %d is in use; change it in Settings › Browser: %w", cfg.Port, err)
+		return nil, fmt.Errorf("no port for the browser extension: %w", err)
 	}
 	b := make([]byte, 12)
 	if _, err := rand.Read(b); err != nil {

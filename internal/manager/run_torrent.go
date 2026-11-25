@@ -69,28 +69,51 @@ func (m *Manager) runTorrent(ctx context.Context, e *entry) error {
 	h.SetUploadLimit(opts.UploadLimit)
 	m.setStatus(e, model.StatusDownloading)
 
-	if err := waitComplete(ctx, h); err != nil {
-		return err
-	}
-	_, wanted := h.Progress()
-	m.mu.Lock()
-	e.d.Size = wanted
-	seed := e.d.Torrent.Seed
-	if seed {
-		if e.d.Torrent.SeedingSince.IsZero() {
-			e.d.Torrent.SeedingSince = now()
+	for {
+		if err := waitComplete(ctx, h); err != nil {
+			return err
 		}
-		m.completeLocked(e, model.StatusSeeding)
-	} else {
-		m.completeLocked(e, model.StatusCompleted)
+		_, wanted := h.Progress()
+		m.mu.Lock()
+		e.d.Size = wanted
+		seed := e.d.Torrent.Seed
+		if seed {
+			if e.d.Torrent.SeedingSince.IsZero() {
+				e.d.Torrent.SeedingSince = now()
+			}
+			m.completeLocked(e, model.StatusSeeding)
+		} else {
+			m.completeLocked(e, model.StatusCompleted)
+		}
+		m.mu.Unlock()
+		if !seed {
+			return nil
+		}
+		// Seed until paused, the seeding goal is reached (the tick stops it),
+		// or more files are selected, which goes back to downloading.
+		if err := waitIncomplete(ctx, h); err != nil {
+			return nil
+		}
+		m.logf(e.d.ID, "More files selected; downloading them")
+		m.setStatus(e, model.StatusDownloading)
 	}
-	m.mu.Unlock()
-	if !seed {
-		return nil
+}
+
+// waitIncomplete returns when the torrent wants data it doesn't have, or
+// with ctx's error when ctx ends first.
+func waitIncomplete(ctx context.Context, h *bt.Handle) error {
+	t := time.NewTicker(500 * time.Millisecond)
+	defer t.Stop()
+	for {
+		if done, wanted := h.Progress(); wanted >= 0 && done < wanted {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.C:
+		}
 	}
-	h.SetSeed(true)
-	<-ctx.Done() // seeding ends on pause or when the tick sees the ratio or time reached
-	return nil
 }
 
 // adoptMetaLocked fills in what the metadata tells: name, size, category, files.

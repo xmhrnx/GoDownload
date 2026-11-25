@@ -170,6 +170,15 @@ func (d *AddDialog) probed() {
 }
 
 func (d *AddDialog) submit() {
+	// A web link still being checked may turn out to be a .torrent; wait for
+	// it. Magnet links may be added before their file list arrives (all
+	// files are wanted; the Files tab changes that later).
+	for _, e := range d.entries {
+		if e.probing && e.torrent == nil {
+			d.s.Toasts.Show(giode.ToastInfo, "Still checking the link…")
+			return
+		}
+	}
 	mode := d.opts.StartMode()
 	settings := d.s.M.Settings()
 	added, dup := 0, 0
