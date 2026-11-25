@@ -13,6 +13,10 @@ desktop download manager running on the same computer.
 ./build.sh chrome     # or just one: chrome | firefox
 ```
 
+On Windows, double-click `build.bat` or run it from a Command Prompt
+(`build.bat`, `build.bat chrome`). It needs nothing beyond Windows 10 or 11:
+it copies with `robocopy` and zips with PowerShell.
+
 This produces:
 
 | Output | Contents |

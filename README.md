@@ -106,6 +106,8 @@ Firefox. It:
 cd extension && ./build.sh     # dist/chrome and dist/firefox, plus zips
 ```
 
+On Windows, run `extension\build.bat` instead (double-click works).
+
 Then load `dist/chrome` as an unpacked extension (Developer mode in
 `chrome://extensions`), or `dist/firefox/manifest.json` in Firefox's
 `about:debugging`. The full guide and the security model are in
